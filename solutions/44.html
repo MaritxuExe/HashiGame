@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Hashi Puzzle Visualization</title>
+<style>
+    body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        font-family: sans-serif;
+    }
+    .puzzle-container {
+        display: flex;
+        flex-direction: row;
+        gap: 50px;
+    }
+    .island-label {
+        text-anchor: middle;
+        dominant-baseline: central;
+        font-weight: bold;
+        font-size: 20px;
+        pointer-events: none; /* so text doesn't block clicks */
+    }
+    .island-circle {
+        fill: #fff;
+        stroke: #000;
+        stroke-width: 2px;
+        pointer-events: none; /* circle doesn't need to block clicks */
+    }
+    .island-circle.green {
+        fill: #b2f5b2;
+    }
+    .bridge-line {
+        stroke: #333;
+        stroke-width: 4px;
+    }
+    .grid-line {
+        stroke: #ccc;
+        stroke-width: 1px;
+    }
+    a.toggle-solution {
+        display: block;
+        margin-top: 20px;
+        cursor: pointer;
+        color: blue;
+        text-decoration: underline;
+    }
+    .island-cell {
+        fill: transparent;
+        cursor: pointer;
+    }
+    .toggle-solution {
+        margin-top: 20px;
+        text-decoration: none;
+        padding: 10px;
+        background: #eee;
+        border-radius: 5px;
+    }
+    @keyframes celebrate {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    
+    .celebration-text {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 48px;
+        color: #4CAF50;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        animation: celebrate 1s ease-in-out infinite;
+        z-index: 1000;
+    }
+    
+    .confetti {
+        position: fixed;
+        width: 10px;
+        height: 10px;
+        background-color: #f00;
+        animation: fall 3s linear forwards;
+    }
+    
+    @keyframes fall {
+        0% { transform: translateY(-100vh) rotate(0deg); }
+        100% { transform: translateY(100vh) rotate(720deg); }
+    }
+    .celebration-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255,255,255,0.9);
+        z-index: 100;
+    }
+    
+    .celebration-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        font-size: 2em;
+        color: #4CAF50;
+    }
+    
+    @keyframes particle {
+        0% { transform: translate(0, 0); opacity: 1; }
+        100% { transform: translate(var(--tx), var(--ty)); opacity: 0; }
+    }
+    
+    .particle {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        animation: particle 1s ease-out forwards;
+    }
+</style>
+</head>
+<body>
+<div id="celebration" class="celebration-text">🎉 Puzzle Complete! 🎉</div>
+<div class="puzzle-container">
+    <div class="container">
+        <h2>Original Puzzle</h2>
+        <svg id="original" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <div class="container">
+        <h2>Interactive Puzzle</h2>
+        <svg id="interactive" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <div class="container" id="solution-container" style="display:none;">
+        <h2>Solved Puzzle</h2>
+        <svg id="solution" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+</div>
+<div class="celebration-overlay">
+    <div class="celebration-content">
+        <h1>🎉 Puzzle Complete! 🎉</h1>
+        <p>All islands connected!</p>
+    </div>
+</div>
+<!-- Embed puzzle and solution data directly into HTML -->
+<script type="application/json" id="puzzle-data">
+{"width": 11, "height": 11, "islands": [[0, 0, 1, 1], [2, 0, 2, 2], [5, 0, 2, 3], [8, 0, 1, 4], [3, 1, 1, 5], [7, 1, 5, 6], [10, 1, 3, 7], [0, 2, 3, 8], [2, 2, 6, 9], [4, 2, 2, 10], [6, 2, 1, 11], [3, 3, 1, 12], [5, 3, 2, 13], [7, 3, 5, 14], [10, 3, 3, 15], [0, 4, 2, 16], [2, 4, 7, 17], [4, 4, 3, 18], [6, 4, 2, 19], [8, 4, 1, 20], [3, 5, 4, 21], [5, 5, 3, 22], [7, 5, 2, 23], [2, 6, 2, 24], [6, 6, 1, 25], [8, 6, 4, 26], [10, 6, 5, 27], [0, 7, 2, 28], [3, 7, 6, 29], [5, 7, 5, 30], [7, 7, 3, 31], [6, 8, 1, 32], [8, 8, 3, 33], [10, 8, 5, 34], [0, 9, 1, 35], [3, 9, 5, 36], [5, 9, 4, 37], [7, 9, 1, 38], [1, 10, 1, 39], [4, 10, 2, 40], [8, 10, 2, 41], [10, 10, 3, 42]], "solution": [{"x1": 0, "y1": 0, "x2": 0, "y2": 2, "bridges": 1}, {"x1": 2, "y1": 0, "x2": 5, "y2": 0, "bridges": 1}, {"x1": 2, "y1": 0, "x2": 2, "y2": 2, "bridges": 1}, {"x1": 5, "y1": 0, "x2": 8, "y2": 0, "bridges": 1}, {"x1": 3, "y1": 1, "x2": 7, "y2": 1, "bridges": 1}, {"x1": 7, "y1": 1, "x2": 10, "y2": 1, "bridges": 2}, {"x1": 7, "y1": 1, "x2": 7, "y2": 3, "bridges": 2}, {"x1": 10, "y1": 1, "x2": 10, "y2": 3, "bridges": 1}, {"x1": 0, "y1": 2, "x2": 2, "y2": 2, "bridges": 2}, {"x1": 2, "y1": 2, "x2": 4, "y2": 2, "bridges": 1}, {"x1": 2, "y1": 2, "x2": 2, "y2": 4, "bridges": 2}, {"x1": 4, "y1": 2, "x2": 6, "y2": 2, "bridges": 1}, {"x1": 3, "y1": 3, "x2": 5, "y2": 3, "bridges": 1}, {"x1": 5, "y1": 3, "x2": 7, "y2": 3, "bridges": 1}, {"x1": 7, "y1": 3, "x2": 10, "y2": 3, "bridges": 1}, {"x1": 7, "y1": 3, "x2": 7, "y2": 5, "bridges": 1}, {"x1": 10, "y1": 3, "x2": 10, "y2": 6, "bridges": 1}, {"x1": 0, "y1": 4, "x2": 2, "y2": 4, "bridges": 1}, {"x1": 0, "y1": 4, "x2": 0, "y2": 7, "bridges": 1}, {"x1": 2, "y1": 4, "x2": 4, "y2": 4, "bridges": 2}, {"x1": 2, "y1": 4, "x2": 2, "y2": 6, "bridges": 2}, {"x1": 4, "y1": 4, "x2": 6, "y2": 4, "bridges": 1}, {"x1": 6, "y1": 4, "x2": 6, "y2": 6, "bridges": 1}, {"x1": 8, "y1": 4, "x2": 8, "y2": 6, "bridges": 1}, {"x1": 3, "y1": 5, "x2": 5, "y2": 5, "bridges": 2}, {"x1": 3, "y1": 5, "x2": 3, "y2": 7, "bridges": 2}, {"x1": 5, "y1": 5, "x2": 5, "y2": 7, "bridges": 1}, {"x1": 7, "y1": 5, "x2": 7, "y2": 7, "bridges": 1}, {"x1": 8, "y1": 6, "x2": 10, "y2": 6, "bridges": 2}, {"x1": 8, "y1": 6, "x2": 8, "y2": 8, "bridges": 1}, {"x1": 10, "y1": 6, "x2": 10, "y2": 8, "bridges": 2}, {"x1": 0, "y1": 7, "x2": 3, "y2": 7, "bridges": 1}, {"x1": 3, "y1": 7, "x2": 5, "y2": 7, "bridges": 1}, {"x1": 3, "y1": 7, "x2": 3, "y2": 9, "bridges": 2}, {"x1": 5, "y1": 7, "x2": 7, "y2": 7, "bridges": 2}, {"x1": 5, "y1": 7, "x2": 5, "y2": 9, "bridges": 1}, {"x1": 6, "y1": 8, "x2": 8, "y2": 8, "bridges": 1}, {"x1": 8, "y1": 8, "x2": 10, "y2": 8, "bridges": 1}, {"x1": 10, "y1": 8, "x2": 10, "y2": 10, "bridges": 2}, {"x1": 0, "y1": 9, "x2": 3, "y2": 9, "bridges": 1}, {"x1": 3, "y1": 9, "x2": 5, "y2": 9, "bridges": 2}, {"x1": 5, "y1": 9, "x2": 7, "y2": 9, "bridges": 1}, {"x1": 1, "y1": 10, "x2": 4, "y2": 10, "bridges": 1}, {"x1": 4, "y1": 10, "x2": 8, "y2": 10, "bridges": 1}, {"x1": 8, "y1": 10, "x2": 10, "y2": 10, "bridges": 1}]}
+</script>
+
+<script>
+(function() {
+    const dataElement = document.getElementById('puzzle-data');
+    const data = JSON.parse(dataElement.textContent);
+
+    const width = data.width;
+    const height = data.height;
+    const islands = data.islands; // [x, y, req, id]
+    const solution = data.solution;
+
+    const cellSize = 50;
+    const margin = 20;
+    const r = cellSize * 0.3;
+
+    const svgWidth = width * cellSize + margin * 2;
+    const svgHeight = height * cellSize + margin * 2;
+
+    const originalSvg = document.getElementById('original');
+    const solutionSvg = document.getElementById('solution');
+    const interactiveSvg = document.getElementById('interactive');
+
+    originalSvg.setAttribute('width', svgWidth);
+    originalSvg.setAttribute('height', svgHeight);
+    solutionSvg.setAttribute('width', svgWidth);
+    solutionSvg.setAttribute('height', svgHeight);
+    interactiveSvg.setAttribute('width', svgWidth);
+    interactiveSvg.setAttribute('height', svgHeight);
+
+    function drawGrid(svg) {
+      for (let x = 0; x <= width; x++) {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        const X = margin + x*cellSize;
+        line.setAttribute('x1', X);
+        line.setAttribute('y1', margin);
+        line.setAttribute('x2', X);
+        line.setAttribute('y2', margin + height*cellSize);
+        line.setAttribute('class', 'grid-line');
+        svg.appendChild(line);
+      }
+      for (let y = 0; y <= height; y++) {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        const Y = margin + y*cellSize;
+        line.setAttribute('x1', margin);
+        line.setAttribute('y1', Y);
+        line.setAttribute('x2', margin + width*cellSize);
+        line.setAttribute('y2', Y);
+        line.setAttribute('class', 'grid-line');
+        svg.appendChild(line);
+      }
+    }
+
+    drawGrid(originalSvg);
+    drawGrid(solutionSvg);
+    drawGrid(interactiveSvg);
+
+    // Sort islands by ID
+    islands.sort((a,b)=>a[3]-b[3]);
+    const positions = islands.map(i => [i[0], i[1]]);
+    const required = islands.map(i => i[2]);
+    const n = islands.length;
+
+    function drawIslands(svg, interactive=false) {
+      islands.forEach((isle, idx) => {
+        const [x, y, req, id] = isle;
+        const cx = margin + x * cellSize + cellSize/2;
+        const cy = margin + y * cellSize + cellSize/2;
+
+        // For interactive: add a transparent rectangle covering the cell
+        if (interactive) {
+            const cellRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            cellRect.setAttribute('x', margin + x*cellSize);
+            cellRect.setAttribute('y', margin + y*cellSize);
+            cellRect.setAttribute('width', cellSize);
+            cellRect.setAttribute('height', cellSize);
+            cellRect.setAttribute('class', 'island-cell');
+            cellRect.setAttribute('data-idx', idx);
+            svg.appendChild(cellRect);
+        }
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute('cx', cx);
+        circle.setAttribute('cy', cy);
+        circle.setAttribute('r', r);
+        circle.setAttribute('class', 'island-circle');
+        circle.setAttribute('data-idx', idx);
+
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute('x', cx);
+        text.setAttribute('y', cy);
+        text.setAttribute('class', 'island-label');
+        text.textContent = req;
+
+        svg.appendChild(circle);
+        svg.appendChild(text);
+      });
+    }
+
+    drawIslands(originalSvg);
+    drawIslands(solutionSvg);
+    drawIslands(interactiveSvg, true);
+
+    // Draw solution bridges
+    function drawSolutionBridges() {
+      solution.forEach(function(edge) {
+        const {x1, y1, x2, y2, bridges} = edge;
+        if (bridges > 0) {
+          const baseX1 = margin + x1 * cellSize + cellSize/2;
+          const baseY1 = margin + y1 * cellSize + cellSize/2;
+          const baseX2 = margin + x2 * cellSize + cellSize/2;
+          const baseY2 = margin + y2 * cellSize + cellSize/2;
+
+          if (baseX1 === baseX2) {
+            let topY = Math.min(baseY1, baseY2);
+            let bottomY = Math.max(baseY1, baseY2);
+
+            if (bridges === 1) {
+              const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+              line.setAttribute('x1', baseX1);
+              line.setAttribute('y1', topY + r);
+              line.setAttribute('x2', baseX2);
+              line.setAttribute('y2', bottomY - r);
+              line.setAttribute('class', 'bridge-line');
+              solutionSvg.appendChild(line);
+            } else {
+              for (let i=0; i<2; i++) {
+                const offset = (i === 0) ? -4 : 4;
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute('x1', baseX1 + offset);
+                line.setAttribute('y1', topY + r);
+                line.setAttribute('x2', baseX2 + offset);
+                line.setAttribute('y2', bottomY - r);
+                line.setAttribute('class', 'bridge-line');
+                solutionSvg.appendChild(line);
+              }
+            }
+          } else {
+            let leftX = Math.min(baseX1, baseX2);
+            let rightX = Math.max(baseX1, baseX2);
+
+            if (bridges === 1) {
+              const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+              line.setAttribute('x1', leftX + r);
+              line.setAttribute('y1', baseY1);
+              line.setAttribute('x2', rightX - r);
+              line.setAttribute('y2', baseY2);
+              line.setAttribute('class', 'bridge-line');
+              solutionSvg.appendChild(line);
+            } else {
+              for (let i=0; i<2; i++) {
+                const offset = (i === 0) ? -4 : 4;
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute('x1', leftX + r);
+                line.setAttribute('y1', baseY1 + offset);
+                line.setAttribute('x2', rightX - r);
+                line.setAttribute('y2', baseY2 + offset);
+                line.setAttribute('class', 'bridge-line');
+                solutionSvg.appendChild(line);
+              }
+            }
+          }
+        }
+      });
+    }
+    drawSolutionBridges();
+
+    // INTERACTIVE PUZZLE LOGIC
+    const ids = islands.map(i => i[3]);
+    const edges = [];
+    for (let i=0; i<n; i++) {
+      const [x1,y1] = positions[i];
+      for (let j=i+1; j<n; j++) {
+        const [x2,y2] = positions[j];
+        if (x1===x2) {
+          let miny = Math.min(y1,y2), maxy=Math.max(y1,y2);
+          let blocked=false;
+          for (let k=0;k<n;k++){
+            if(k!==i && k!==j) {
+              const [xx,yy]=positions[k];
+              if(xx===x1 && yy>miny && yy<maxy){blocked=true;break;}
+            }
+          }
+          if(!blocked) edges.push({i:i,j:j,type:'vertical',bridges:0});
+        } else if (y1===y2) {
+          let minx=Math.min(x1,x2), maxx=Math.max(x1,x2);
+          let blocked=false;
+          for(let k=0;k<n;k++){
+            if(k!==i&&k!==j){
+              const [xx,yy]=positions[k];
+              if(yy===y1 && xx>minx && xx<maxx){blocked=true;break;}
+            }
+          }
+          if(!blocked) edges.push({i:i,j:j,type:'horizontal',bridges:0});
+        }
+      }
+    }
+
+    let selectedIsland = null;
+
+    function updateInteractiveBridges() {
+      Array.from(interactiveSvg.querySelectorAll('.bridge-line')).forEach(e=>e.remove());
+      edges.forEach(e => {
+        if(e.bridges>0) {
+          const i = e.i, j=e.j;
+          const [x1,y1]=positions[i];
+          const [x2,y2]=positions[j];
+
+          const baseX1 = margin + x1*cellSize + cellSize/2;
+          const baseY1 = margin + y1*cellSize + cellSize/2;
+          const baseX2 = margin + x2*cellSize + cellSize/2;
+          const baseY2 = margin + y2*cellSize + cellSize/2;
+
+          if(baseX1===baseX2){
+            let topY=Math.min(baseY1,baseY2);
+            let bottomY=Math.max(baseY1,baseY2);
+            if(e.bridges===1){
+              const line=document.createElementNS("http://www.w3.org/2000/svg","line");
+              line.setAttribute('x1',baseX1);
+              line.setAttribute('y1',topY+r);
+              line.setAttribute('x2',baseX2);
+              line.setAttribute('y2',bottomY-r);
+              line.setAttribute('class','bridge-line');
+              interactiveSvg.appendChild(line);
+            }else{
+              for(let k=0;k<2;k++){
+                const offset=k===0?-4:4;
+                const line=document.createElementNS("http://www.w3.org/2000/svg","line");
+                line.setAttribute('x1',baseX1+offset);
+                line.setAttribute('y1',topY+r);
+                line.setAttribute('x2',baseX2+offset);
+                line.setAttribute('y2',bottomY-r);
+                line.setAttribute('class','bridge-line');
+                interactiveSvg.appendChild(line);
+              }
+            }
+          }else{
+            let leftX=Math.min(baseX1,baseX2);
+            let rightX=Math.max(baseX1,baseX2);
+            if(e.bridges===1){
+              const line=document.createElementNS("http://www.w3.org/2000/svg","line");
+              line.setAttribute('x1',leftX+r);
+              line.setAttribute('y1',baseY1);
+              line.setAttribute('x2',rightX-r);
+              line.setAttribute('y2',baseY2);
+              line.setAttribute('class','bridge-line');
+              interactiveSvg.appendChild(line);
+            }else{
+              for(let k=0;k<2;k++){
+                const offset=k===0?-4:4;
+                const line=document.createElementNS("http://www.w3.org/2000/svg","line");
+                line.setAttribute('x1',leftX+r);
+                line.setAttribute('y1',baseY1+offset);
+                line.setAttribute('x2',rightX-r);
+                line.setAttribute('y2',baseY2+offset);
+                line.setAttribute('class','bridge-line');
+                interactiveSvg.appendChild(line);
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateIslandColors() {
+      const incidentCount = new Array(n).fill(0);
+      edges.forEach(e=>{
+        if(e.bridges>0){
+          incidentCount[e.i]+=e.bridges;
+          incidentCount[e.j]+=e.bridges;
+        }
+      });
+
+      islands.forEach((isle, idx) => {
+        const circle = interactiveSvg.querySelector('circle[data-idx="'+idx+'"]');
+        if(incidentCount[idx]===required[idx]) {
+          circle.classList.add('green');
+        } else {
+          circle.classList.remove('green');
+        }
+      });
+    }
+
+    function tryConnect(i1,i2){
+      for(let e of edges){
+        if((e.i===i1 && e.j===i2)||(e.i===i2 && e.j===i1)){
+          e.bridges=(e.bridges+1)%3;
+          updateInteractiveBridges();
+          updateIslandColors();
+          checkCompletion();
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function checkCompletion() {
+        const totalIslands = document.querySelectorAll('.island-circle').length;
+        const greenIslands = document.querySelectorAll('.island-circle.green').length;
+        if (totalIslands === greenIslands) {
+            celebrate();
+        }
+    }
+
+    function createParticles(x, y) {
+        const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'];
+        for (let i = 0; i < 30; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            particle.style.left = x + 'px';
+            particle.style.top = y + 'px';
+            particle.style.setProperty('--tx', (Math.random() - 0.5) * 200 + 'px');
+            particle.style.setProperty('--ty', (Math.random() - 0.5) * 200 + 'px');
+            document.body.appendChild(particle);
+            setTimeout(() => particle.remove(), 1000);
+        }
+    }
+
+    function celebrate() {
+        const overlay = document.querySelector('.celebration-overlay');
+        overlay.style.display = 'block';
+        
+        const islands = document.querySelectorAll('.island-circle');
+        islands.forEach(island => {
+            const rect = island.getBoundingClientRect();
+            createParticles(rect.left + rect.width/2, rect.top + rect.height/2);
+        });
+        
+        setTimeout(() => overlay.style.display = 'none', 3000);
+    }
+
+    const islandCells = interactiveSvg.querySelectorAll('.island-cell');
+    islandCells.forEach(c=>{
+      c.addEventListener('click', (ev)=>{
+        const idx = parseInt(c.getAttribute('data-idx'));
+        if(selectedIsland===null){
+          selectedIsland=idx;
+        } else {
+          if(selectedIsland===idx){
+            selectedIsland=null;
+          } else {
+            if(!tryConnect(selectedIsland, idx)){
+              selectedIsland=idx;
+            } else {
+              selectedIsland=null;
+            }
+          }
+        }
+      });
+    });
+
+    // SOLUTION TOGGLE LINK (only one instance)
+    document.addEventListener('DOMContentLoaded', function() {
+        const solutionContainer = document.getElementById('solution-container');
+        
+        const link = document.createElement('a');
+        link.href = '#';
+        link.textContent = 'Show Solution';
+        link.className = 'toggle-solution';
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (solutionContainer.style.display === 'none') {
+                solutionContainer.style.display = 'inline-block';
+                link.textContent = 'Hide Solution';
+            } else {
+                solutionContainer.style.display = 'none';
+                link.textContent = 'Show Solution';
+            }
+        });
+        
+        document.body.appendChild(link);
+    });
+})();
+</script>
+</body>
+</html>
