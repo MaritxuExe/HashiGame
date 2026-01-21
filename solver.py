@@ -50,11 +50,11 @@ def vertical_bridges(i, j, nodes):
         if k == nodes[i] or k == nodes[j]:
             continue
         
-        left = min(yi, yj)
-        right = max(yi, yj)
+        top = min(yi, yj)
+        bottom = max(yi, yj)
         
         #xi == xj
-        if xk == xi and (left < yk < right):
+        if xk == xi and (top < yk < bottom):
             return False
         
     return True
@@ -75,7 +75,7 @@ def horizontal_bridges(i, j, nodes):
         left = min(xi, xj)
         right = max(xi, xj)
         
-        #xi == xj
+        #yi == yj
         if yk == yi and (left < xk < right):
             return False
         
@@ -137,24 +137,24 @@ def add_crossing_constraints(nodes, edges, cnf):
             
             if e1_y1 == e1_y2 and e2_x1 == e2_x2:
                 
-                x_top = min(e1_x1, e2_x1)
-                x_bottom = max(e1_x1, e2_x1)
+                x_left = min(e1_x1, e2_x1)
+                x_right = max(e1_x1, e2_x1)
                 
-                y_left = min(e1_y2, e2_y2)
-                y_right = max(e1_y2, e2_y2)
+                y_top = min(e1_y2, e2_y2)
+                y_bottom = max(e1_y2, e2_y2)
                 
-                if (x_top < e1_x1 < x_bottom) and (y_left < e2_y1 < y_right):
+                if (x_left < e1_x1 < x_right) and (y_top < e2_y1 < y_bottom):
                     cruza = True
             
             elif e2_y1 == e2_y2 and e1_x1 == e1_x2:
                 
-                x_top = min(e2_x1, e2_x2)
-                x_bottom = max(e2_x1, e2_x2)
+                x_left = min(e2_x1, e2_x2)
+                x_right = max(e2_x1, e2_x2)
                 
-                y_left = min(e1_y1, e1_y2)
-                y_right = max(e1_y1, e1_y2)
+                y_top = min(e1_y1, e1_y2)
+                y_bottom = max(e1_y1, e1_y2)
                 
-                if (x_top < e1_x1 < x_bottom) and (y_left < e2_y1 < y_right):
+                if (x_left < e1_x1 < x_right) and (y_top < e2_y1 < y_bottom):
                     cruza = True
                 
             if cruza:
